@@ -10,6 +10,7 @@
 int main(void) {
   FILE* stat = fopen("/proc/stat", "r");
   stat_layout_set_f(stat);
+  fclose(stat);
   stat_layout_t layout = stat_layout_get();
   stat_cpu_array_t array = stat_cpu_array_create();
   for (size_t i = 0; i < 5; ++i) {
