@@ -57,7 +57,7 @@ int stat_layout_set_f(
   return stat_layout_set_lf(&global_layout, source);
 }
 
-const stat_layout_t stat_layout_get() {
+stat_layout_t stat_layout_get() {
   return global_layout;
 }
 
@@ -73,7 +73,7 @@ stat_cpu_array_t stat_cpu_array_create_l(stat_layout_t layout[static 1]) {
 }
 
 stat_cpu_array_t stat_cpu_array_create() {
-  stat_cpu_array_create_l(&global_layout);
+  return stat_cpu_array_create_l(&global_layout);
 }
 
 void stat_cpu_array_free_l(
@@ -102,11 +102,11 @@ int stat_cpu_array_read_fl(
   int err_flag = 1; //1 is the number on success for fscanf in this case
   int read_total = 0; //for counting how many numbers were successfully read
 
-  for (int i = 0; i < layout->cpu_count && err_flag == 1; ++i) {
+  for (size_t i = 0; i < layout->cpu_count && err_flag == 1; ++i) {
     //even if it's an unnecessary data, failure here means something's wrong
     err_flag = fscanf(source, "%s", dummy);
-    for (int j = 0; j < layout->cpu_column_count && err_flag == 1; ++j) {
-      err_flag = fscanf(source, "%lf", &(array[i][j]));
+    for (size_t j = 0; j < layout->cpu_column_count && err_flag == 1; ++j) {
+      err_flag = fscanf(source, "%f", &(array[i][j]));
       //necessary because fscanf can also return EOF
       read_total += (err_flag == 1);
     }
@@ -127,5 +127,42 @@ int stat_cpu_array_read_f(
   stat_cpu_array_t array,
   FILE source[static 1]
 ) {
-  stat_cpu_array_read_fl(array, source, &global_layout);
+  return stat_cpu_array_read_fl(array, source, &global_layout);
+}
+
+void stat_cpu_row_delta_l(
+  stat_cpu_row_t old,
+  stat_cpu_row_t curr,
+  stat_cpu_row_t result,
+  stat_layout_t layout[static 1]
+) {
+  for (size_t i = 0; i < layout->cpu_column_count; ++i) {
+    result[i] = curr[i] - old[i];
+  }
+}
+
+void stat_cpu_row_delta(
+  stat_cpu_row_t old,
+  stat_cpu_row_t curr,
+  stat_cpu_row_t result
+){
+  stat_cpu_row_delta_l(old, curr, result, &global_layout);
+}
+
+float stat_cpu_row_percentage_8(
+  stat_cpu_row_t delta
+) {
+  float total_work = (
+    delta[user_proc_col] +
+    delta[nice_proc_col] +
+    delta[system_proc_col] +
+    delta[irq_col] +
+    delta[softirq_col] +
+    delta[steal_col]
+  );
+  float total = total_work + delta[idle_col] + delta[iowait_col];
+  if (total == 0.0) {
+    return 0;
+  }
+  return total_work * 100.00 / total;
 }

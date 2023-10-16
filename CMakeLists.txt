@@ -9,7 +9,7 @@ set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
-if(CMAKE_C_COMPILEsR_ID STREQUAL "GNU")
+if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
   add_compile_options(
     -Wall
     -Wextra
@@ -33,4 +33,5 @@ add_executable(
   main
   src/main.c
   src/cpu_diagnostics/linux.c
+  #src/logger/logger.c
 )

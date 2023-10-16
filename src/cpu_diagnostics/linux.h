@@ -49,10 +49,10 @@ enum cpu_column_id {
  * note: Unsigned long long was considered, as those values are always written
  * as integers, but there existed uncertainty in developers mind regarding
  * how big those numbers can really get, so ultimately decision was made to
- * change it to double, as all the precision from storing it in an integer
+ * change it to float, as all the precision from storing it in an integer
  * would be lost anyway in the following calculations.
  */
-typedef double stat_cpu_field_t;
+typedef float stat_cpu_field_t;
 
 /**
  * @brief Dynamic array representing a row of numeric fields from the cpu
@@ -117,9 +117,9 @@ int stat_layout_set_f(
 /**
  * @brief Returns global layout object.
  * 
- * @return const stat_layout_t object currently stored by library
+ * @return stat_layout_t object currently stored by library
  */
-const stat_layout_t stat_layout_get();
+stat_layout_t stat_layout_get();
 /**
  * @brief Allocates new stat_cpu_array_t object, based on passed layout.
  * 
@@ -200,5 +200,23 @@ int stat_cpu_array_read_f(
   stat_cpu_array_t array,
   FILE source[static 1]
 );
+
+void stat_cpu_row_delta_l(
+  stat_cpu_row_t old,
+  stat_cpu_row_t curr,
+  stat_cpu_row_t result,
+  stat_layout_t layout[static 1]
+);
+
+void stat_cpu_row_delta(
+  stat_cpu_row_t old,
+  stat_cpu_row_t curr,
+  stat_cpu_row_t result
+);
+
+float stat_cpu_row_percentage_8(
+  stat_cpu_row_t delta
+);
+
 
 #endif
