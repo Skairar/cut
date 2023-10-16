@@ -25,6 +25,12 @@ elseif(CMAKE_C_COMPILER_ID STREQUAL "Clang")
     #unnecessarily clutter the code
     -Wno-declaration-after-statement
   )
+  if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_compile_options(
+      #for Valgrind
+      -gdwarf-4
+    )
+  endif()
 endif()
 
 include_directories(src)
