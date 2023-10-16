@@ -29,7 +29,7 @@ int main(void) {
     stat_cpu_array_read_f(curr, stat);
     for (size_t j = 0; j < layout.cpu_count; ++j) {
       stat_cpu_row_delta(prev[j], curr[j], prev[j]);
-      printf("Percentage [%zu] = %.2f%%\n", j, stat_cpu_row_percentage_8(prev[j]));
+      printf("Percentage [%zu] = %.2f%%\n", j, (double)stat_cpu_row_percentage_8(prev[j]));
     }
     fclose(stat);
   }

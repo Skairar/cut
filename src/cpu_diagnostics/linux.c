@@ -3,7 +3,7 @@
 /**
  * @brief File scope variable storing layout for use globally by implementation.
  */
-stat_layout_t global_layout;
+static stat_layout_t global_layout;
 
 int stat_layout_set_lf(
   stat_layout_t layout[static 1],
@@ -57,7 +57,7 @@ int stat_layout_set_f(
   return stat_layout_set_lf(&global_layout, source);
 }
 
-stat_layout_t stat_layout_get() {
+stat_layout_t stat_layout_get(void) {
   return global_layout;
 }
 
@@ -72,7 +72,7 @@ stat_cpu_array_t stat_cpu_array_create_l(stat_layout_t layout[static 1]) {
   return new_array;
 }
 
-stat_cpu_array_t stat_cpu_array_create() {
+stat_cpu_array_t stat_cpu_array_create(void) {
   return stat_cpu_array_create_l(&global_layout);
 }
 
@@ -161,8 +161,8 @@ float stat_cpu_row_percentage_8(
     delta[steal_col]
   );
   float total = total_work + delta[idle_col] + delta[iowait_col];
-  if (total == 0.0) {
+  if (total == 0.0f) {
     return 0;
   }
-  return total_work * 100.00 / total;
+  return total_work * 100.00f / total;
 }

@@ -1,5 +1,5 @@
-#ifndef _SKAI_CPU_DIAGNOSTICS_LINUX_H_
-#define _SKAI_CPU_DIAGNOSTICS_LINUX_H_
+#ifndef SKAI_CPU_DIAGNOSTICS_LINUX_H
+#define SKAI_CPU_DIAGNOSTICS_LINUX_H
 
 #include <ctype.h>
 #include <stdio.h>
@@ -87,7 +87,7 @@ typedef stat_cpu_row_t* stat_cpu_array_t;
  * 
  * Works on assumption it won't encounter any character that isn't an
  * alphanumeric, space or newline, which shouldn't be the case when used
- * correctly. For instance, if a character like '\t' somehow gets into the
+ * correctly. For instance, if a character like "tab" somehow gets into the
  * stream, resulting layout might be invalid.
  * 
  * @param layout Will be zeroed and set anew
@@ -119,7 +119,7 @@ int stat_layout_set_f(
  * 
  * @return stat_layout_t object currently stored by library
  */
-stat_layout_t stat_layout_get();
+stat_layout_t stat_layout_get(void);
 /**
  * @brief Allocates new stat_cpu_array_t object, based on passed layout.
  * 
@@ -138,7 +138,7 @@ stat_cpu_array_t stat_cpu_array_create_l(stat_layout_t layout[static 1]);
  * 
  * @return stat_cpu_array_t* 
  */
-stat_cpu_array_t stat_cpu_array_create();
+stat_cpu_array_t stat_cpu_array_create(void);
 
 /**
  * @brief Frees the memory allocated for stat_cpu_array_t object. Requires

@@ -20,6 +20,10 @@ if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
 elseif(CMAKE_C_COMPILER_ID STREQUAL "Clang")
   add_compile_options(
     -Weverything
+    #current standard allows for those, adhering to this rule would force the
+    #split of initializations from declarations in several cases and
+    #unnecessarily clutter the code
+    -Wno-declaration-after-statement
   )
 endif()
 
