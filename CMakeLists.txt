@@ -35,13 +35,37 @@ endif()
 
 include_directories(src)
 
-#add_subdirectory(src/tests)
+add_subdirectory(src/tests)
 
 enable_testing()
+
+add_library(
+  utilities STATIC
+  src/utilities/string.c
+  src/utilities/time.c
+)
+
+add_library(
+  queue STATIC
+  src/data_structures/queue.c
+  src/data_structures/message_queue.c
+)
+
+add_library(
+  logger STATIC
+  src/logger/logger.c
+  src/logger/log_record.c
+  src/logger/message_queue.c
+  src/logger/output_sinks.c
+  src/logger/severity.c
+)
+
+target_link_libraries(logger queue utilities)
 
 add_executable(
   main
   src/main.c
   src/cpu_diagnostics/linux.c
-  #src/logger/logger.c
 )
+
+target_link_libraries(main logger)

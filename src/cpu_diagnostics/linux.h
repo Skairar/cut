@@ -201,6 +201,18 @@ int stat_cpu_array_read_f(
   FILE source[static 1]
 );
 
+/**
+ * @brief Calculates difference between all elements of two rows and saves
+ * results in a new row, with dimensions according to provided layout
+ * 
+ * All rows should be have dimensions greater or equal to the ones dictated
+ * by the layout.
+ * 
+ * @param old Row with values that will be subtracted
+ * @param curr Row with values to subtract from
+ * @param result Row to which the difference will be saved
+ * @param layout Layout describing dimensions of the provided rows
+ */
 void stat_cpu_row_delta_l(
   stat_cpu_row_t old,
   stat_cpu_row_t curr,
@@ -208,12 +220,34 @@ void stat_cpu_row_delta_l(
   stat_layout_t layout[static 1]
 );
 
+/**
+ * @brief Calculates difference between all elements of two rows and saves
+ * results in a new row, with dimensions according to the global layout
+ * 
+ * All rows should be have dimensions greater or equal to the ones dictated
+ * by the global layout.
+ * 
+ * @param old Row with values that will be subtracted
+ * @param curr Row with values to subtract from
+ * @param result Row to which the difference will be saved
+ */
 void stat_cpu_row_delta(
   stat_cpu_row_t old,
   stat_cpu_row_t curr,
   stat_cpu_row_t result
 );
 
+/**
+ * @brief Calculates CPU usage percentage for the provided row, using 8 fields.
+ * 
+ * Uses all fields except the last two, as according to conducted research their
+ * values are already contained in previous fields, which makes them redundant
+ * for this calculation.
+ * 
+ * @param delta stat_cpu_row_t to calculate percentage for, thought of as a
+ * delta of rows from two different time points.
+ * @return float 
+ */
 float stat_cpu_row_percentage_8(
   stat_cpu_row_t delta
 );
