@@ -1,7 +1,13 @@
 #include "queue.h"
 
 queue_node_t* queue_node_new(void* value) {
+  if (value == NULL) {
+    return NULL;
+  }
   queue_node_t* new_node = malloc(sizeof(queue_node_t));
+  if (new_node == NULL) {
+    return NULL;
+  }
   new_node->value = value;
   //new_node->prev = NULL;
   new_node->next = NULL;
@@ -59,9 +65,6 @@ bool queue_empty(queue_t queue[static 1]) {
 }
 
 int queue_push(queue_t queue[static 1], void* value) {
-  if (value == NULL) {
-    return 0;
-  }
   queue_node_t* new_node = queue_node_new(value);
   if (new_node == NULL) {
     return -1;
