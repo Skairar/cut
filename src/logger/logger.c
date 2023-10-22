@@ -27,7 +27,7 @@ typedef struct log_context {
 static log_context_t log_context;
 
 
-int log_context_init(log_context_t context[static 1]) {
+static int log_context_init(log_context_t context[static 1]) {
   context->config.start_time = time(NULL);
   context->config.min_severity = log_trace;
   int msq_q_flag = message_queue_init(
@@ -44,7 +44,7 @@ int log_context_init(log_context_t context[static 1]) {
   return 0;
 }
 
-void log_context_destroy(log_context_t* context) {
+static void log_context_destroy(log_context_t* context) {
   message_queue_destroy(
     &(context->message_queue)
   );
@@ -81,7 +81,7 @@ void log_add_sink_f(
   queue_push(&(log_context.file_sinks), new_sink);
 }
 
-int log_push_record(
+static int log_push_record(
   log_record_t record[static 1]
 ) {
   if (log_context.config.min_severity > record->severity) {
@@ -137,7 +137,7 @@ void log_printf(
     //TODO: error message
     return;
   }
-  log_record_t* new_record = log_record_new_cpy_buf(
+  log_record_t* new_record = log_record_new(
     thrd_current(),
     timestamp,
     severity,
@@ -145,6 +145,7 @@ void log_printf(
   );
   if (new_record == NULL) {
     //TO DO: error message
+    free(message);
     return;
   }
   int push_flag = log_push_record(new_record);

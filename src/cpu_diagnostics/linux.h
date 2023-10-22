@@ -49,10 +49,10 @@ enum cpu_column_id {
  * note: Unsigned long long was considered, as those values are always written
  * as integers, but there existed uncertainty in developers mind regarding
  * how big those numbers can really get, so ultimately decision was made to
- * change it to float, as all the precision from storing it in an integer
+ * change it to double, as all the precision from storing it in an integer
  * would be lost anyway in the following calculations.
  */
-typedef float stat_cpu_field_t;
+typedef double stat_cpu_field_t;
 
 /**
  * @brief Dynamic array representing a row of numeric fields from the cpu
@@ -72,7 +72,7 @@ typedef stat_cpu_field_t* stat_cpu_row_t;
  */
 typedef stat_cpu_row_t* stat_cpu_array_t;
 
-typedef float stat_cpu_percentage_t;
+typedef double stat_cpu_percentage_t;
 
 typedef stat_cpu_percentage_t* stat_cpu_percentage_array_t;
 
@@ -264,9 +264,9 @@ void stat_cpu_row_delta(
  * 
  * @param delta stat_cpu_row_t to calculate percentage for, thought of as a
  * delta of rows from two different time points.
- * @return float 
+ * @return stat_cpu_percentage_t
  */
-float stat_cpu_row_percentage_8(
+stat_cpu_percentage_t stat_cpu_row_percentage_8(
   stat_cpu_row_t delta
 );
 

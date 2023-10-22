@@ -15,7 +15,8 @@
 
 static atomic_bool execution_flag;
 
-void signal_handler(int signum) {
+static void signal_handler(int signum) {
+  (void)signum;
   atomic_store(&execution_flag, false);
 }
 
@@ -46,7 +47,7 @@ int reader_exec(
   void* reader_context_ptr
 ) {
   reader_context_t* context = reader_context_ptr;
-  long long unsigned int iteration_count = 0;
+  int iteration_count = 0;
   log_puts(log_trace, "<Reader> Thread starts.");
 
   while (atomic_load(context->thread.should_continue)) {
@@ -80,6 +81,7 @@ int reader_exec(
       push_flag = message_queue_push(context->output, data);
       log_puts(log_trace, "<Reader> Pushed message to queue.");
     } else {
+      stat_cpu_array_free(data);
       log_printf(
         log_error,
         "<Reader> Read from /stat/cpu failed, return code: %i.",
@@ -88,6 +90,7 @@ int reader_exec(
     }
 
     if (push_flag) {
+      stat_cpu_array_free(data);
       log_printf(
         log_error, 
         "<Reader> Failed to push results, return code: %i.",
@@ -110,7 +113,7 @@ int reader_exec(
     timespan_t total_dur = timespan_dur(loop_start, timepoint_now());
     log_printf(
       log_debug,
-      "<Reader> Iteration #%llx finished in %llisec %llinsec.",
+      "<Reader> Iteration #%i finished in %llisec %llinsec.",
       iteration_count,
       (long long int)total_dur.tv_sec,
       (long long int)total_dur.tv_nsec
@@ -119,7 +122,7 @@ int reader_exec(
   }
   log_printf(
     log_trace,
-    "<Reader> Thread ends after %lli iterations.",
+    "<Reader> Thread ends after %i iterations.",
     iteration_count
   );
   return iteration_count;
@@ -129,7 +132,7 @@ int analyzer_exec(
   void* analyzer_context_ptr
 ) {
   analyzer_context_t* context = analyzer_context_ptr;
-  long long unsigned int iteration_count;
+  int iteration_count = 0;
   log_puts(log_trace, "<Analyzer> Thread starts.");
 
   stat_cpu_array_t prev = NULL;  
@@ -139,7 +142,7 @@ int analyzer_exec(
   if (delta == NULL) {
     //TO DO: out of memory condition
     atomic_store(context->thread.should_continue, false);
-    return -1;
+    return 0;
   }
 
   stat_cpu_percentage_array_t result = NULL;
@@ -187,30 +190,34 @@ int analyzer_exec(
     timespan_t total_dur = timespan_dur(loop_start, timepoint_now());
     log_printf(
       log_debug,
-      "<Analyzer> Iteration #%llx finished in %llisec %llinsec.",
+      "<Analyzer> Iteration #%i finished in %llisec %llinsec.",
       iteration_count,
       (long long int)total_dur.tv_sec,
       (long long int)total_dur.tv_nsec
     );
     iteration_count += 1;
   }
+  
+  if (prev != NULL) {
+    stat_cpu_array_free(prev);
+  }
 
   stat_cpu_array_free(delta);
 
   log_printf(
     log_trace,
-    "<Analyzer> Thread ends after %lli iterations.",
+    "<Analyzer> Thread ends after %i iterations.",
     iteration_count
   );
 
-  return 0;
+  return iteration_count;
 }
 
 int printer_exec(
   void* printer_context_ptr
 ) {
   printer_context_t* context = printer_context_ptr;
-  long long unsigned int iteration_count = 0;
+  int iteration_count = 0;
   log_puts(log_trace, "<Printer> Thread starts.");
 
   stat_cpu_percentage_array_t result = NULL;
@@ -254,7 +261,7 @@ int printer_exec(
     timespan_t total_dur = timespan_dur(loop_start, timepoint_now());
     log_printf(
       log_debug,
-      "<Printer> Iteration #%llx finished in %llisec %llinsec.",
+      "<Printer> Iteration #%i finished in %llisec %llinsec.",
       iteration_count,
       (long long int)total_dur.tv_sec,
       (long long int)total_dur.tv_nsec
@@ -264,7 +271,7 @@ int printer_exec(
 
   log_printf(
     log_trace,
-    "<Printer> Thread ends after %lli iterations.",
+    "<Printer> Thread ends after %i iterations.",
     iteration_count
   );
   return iteration_count;
@@ -281,6 +288,9 @@ int logger_exec(
     atomic_store(context->watchdog, true);
     log_process_some_dur(context->interval);
   }
+  
+  //delay ending a bit so it can catch messages from other threads
+  thrd_sleep(&(context->interval), NULL);
   log_puts(log_trace, "<Logger> Thread ending, printing remaining messages.");
   log_process_all();
   return 0;
@@ -293,7 +303,7 @@ int main(void) {
   log_add_sink_f(log_file, true, NULL);
   //log_add_sink_f(stderr, false, NULL);
 
-  log_set_min_severity(log_debug);
+  log_set_min_severity(log_trace);
 
   FILE* stat = fopen("/proc/stat", "r");
   stat_layout_set_f(stat);
@@ -385,6 +395,8 @@ int main(void) {
     thrd_join(worker[i], NULL);
   }
 
+  message_queue_destroy(&(unprocessed_data_queue));
+  message_queue_destroy(&(processed_data_queue));
   log_destroy();
   exit(EXIT_SUCCESS);
 }

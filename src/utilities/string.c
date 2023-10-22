@@ -36,7 +36,7 @@ char* format_to_new_string(
   va_list arguments1, arguments2;
   va_start(arguments1, format);
   va_copy(arguments2, arguments1);
-  int buff_size = buffer_size_for_format_v(format, arguments1);
+  size_t buff_size = buffer_size_for_format_v(format, arguments1);
   va_end(arguments1);
   if (buff_size == 0) {
     va_end(arguments2);
@@ -65,7 +65,7 @@ char* format_to_new_string_v(
 ) {
   va_list arguments_cpy;
   va_copy(arguments_cpy, arguments);
-  int buff_size = buffer_size_for_format_v(format, arguments_cpy);
+  size_t buff_size = buffer_size_for_format_v(format, arguments_cpy);
   va_end(arguments_cpy);
   if (buff_size == 0) {
     return NULL;

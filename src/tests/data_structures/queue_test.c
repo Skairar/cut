@@ -5,9 +5,9 @@
 
 #include "data_structures/queue.h"
 
-int deleter_invocation_count;
+static int deleter_invocation_count;
 
-void sample_deleter(void* value) {
+static void sample_deleter(void* value) {
   free(value);
   deleter_invocation_count += 1;
 }

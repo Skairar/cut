@@ -110,7 +110,7 @@ int stat_cpu_array_read_fl(
     //even if it's an unnecessary data, failure here means something's wrong
     err_flag = fscanf(source, "%s", dummy);
     for (size_t j = 0; j < layout->cpu_column_count && err_flag == 1; ++j) {
-      err_flag = fscanf(source, "%f", &(array[i][j]));
+      err_flag = fscanf(source, "%lf", &(array[i][j]));
       //necessary because fscanf can also return EOF
       read_total += (err_flag == 1);
     }
@@ -172,10 +172,10 @@ void stat_cpu_row_delta(
   stat_cpu_row_delta_l(old, curr, result, &global_layout);
 }
 
-float stat_cpu_row_percentage_8(
+stat_cpu_percentage_t stat_cpu_row_percentage_8(
   stat_cpu_row_t delta
 ) {
-  float total_work = (
+  stat_cpu_percentage_t total_work = (
     delta[user_proc_col] +
     delta[nice_proc_col] +
     delta[system_proc_col] +
@@ -183,11 +183,11 @@ float stat_cpu_row_percentage_8(
     delta[softirq_col] +
     delta[steal_col]
   );
-  float total = total_work + delta[idle_col] + delta[iowait_col];
-  if (total == 0.0f) {
+  stat_cpu_percentage_t total = total_work + delta[idle_col] + delta[iowait_col];
+  if (total == 0.0) {
     return 0;
   }
-  return total_work * 100.00f / total;
+  return total_work * 100.00 / total;
 }
 
 stat_cpu_percentage_array_t stat_cpu_percentage_array_create_l(
@@ -218,7 +218,7 @@ int stat_cpu_percentage_array_calculate_l(
   for (size_t i = 0; i < layout->cpu_count; ++i) {
     percentage_array[i] = stat_cpu_row_percentage_8(field_array[i]);
   }
-  return layout->cpu_count;
+  return (int)layout->cpu_count;
 }
 
 int stat_cpu_percentage_array_calculate(

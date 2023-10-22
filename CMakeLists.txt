@@ -29,6 +29,7 @@ elseif(CMAKE_C_COMPILER_ID STREQUAL "Clang")
     #Necessary as I use wrappers around stdio functions for formatting
     #messages for logger
     -Wno-format-nonliteral
+    -Wno-padded
   )
   if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_compile_options(

@@ -64,7 +64,7 @@ void log_printf(
 
 void log_process_some_dur(timespan_t duration);
 
-void log_process_all();
+void log_process_all(void);
 
 
 #endif
