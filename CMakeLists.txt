@@ -24,6 +24,11 @@ elseif(CMAKE_C_COMPILER_ID STREQUAL "Clang")
     #split of initializations from declarations in several cases and
     #unnecessarily clutter the code
     -Wno-declaration-after-statement
+    #temporary
+    -Wno-documentation
+    #Necessary as I use wrappers around stdio functions for formatting
+    #messages for logger
+    -Wno-format-nonliteral
   )
   if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_compile_options(
@@ -55,7 +60,6 @@ add_library(
   logger STATIC
   src/logger/logger.c
   src/logger/log_record.c
-  src/logger/message_queue.c
   src/logger/output_sinks.c
   src/logger/severity.c
 )

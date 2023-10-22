@@ -6,7 +6,7 @@
 #include <stdarg.h>
 
 #include "data_structures/queue.h"
-#include "message_queue.h"
+#include "data_structures/message_queue.h"
 #include "output_sinks.h"
 #include "utilities/string.h"
 #include "utilities/time.h"
@@ -31,7 +31,8 @@ int log_context_init(log_context_t context[static 1]) {
   context->config.start_time = time(NULL);
   context->config.min_severity = log_trace;
   int msq_q_flag = message_queue_init(
-    &(context->message_queue)
+    &(context->message_queue),
+    log_record_deleter
   );
   if (msq_q_flag) {
     return msq_q_flag;
@@ -86,7 +87,7 @@ int log_push_record(
   if (log_context.config.min_severity > record->severity) {
     return -1;
   }
-  int post_flag = message_queue_post(
+  int post_flag = message_queue_push(
     &(log_context.message_queue),
     record
   );
@@ -155,21 +156,18 @@ void log_printf(
 
 }
 
-void log_process_some_dur(struct timespec duration) {
-  struct timespec deadline;
-  timespec_get(&deadline, TIME_UTC);
-  deadline.tv_sec += duration.tv_sec;
-  deadline.tv_nsec += duration.tv_nsec;
+void log_process_some_dur(timespan_t duration) {
+  timepoint_t deadline = timepoint_after(timepoint_now(), duration);
 
-  struct timespec current_time;
-  timespec_get(&current_time, TIME_UTC);
   while (
-    current_time.tv_sec < deadline.tv_sec &&
-    current_time.tv_nsec < deadline.tv_nsec
+    timepoint_gt(deadline, timepoint_now())
   ) {
-    log_record_t* record = message_queue_pop(&(log_context.message_queue));
+    log_record_t* record = message_queue_pop_wait_t(
+      &(log_context.message_queue),
+      deadline
+    );
     if (record == NULL) {
-      break;
+      continue;
     }
     int noprint_count = output_sink_list_print(
       &(log_context.file_sinks),
@@ -179,7 +177,6 @@ void log_process_some_dur(struct timespec duration) {
       //TO DO: push a debug message
     }
     log_record_free(record);
-    timespec_get(&current_time, TIME_UTC);
   }
 }
 

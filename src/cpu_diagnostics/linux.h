@@ -72,6 +72,9 @@ typedef stat_cpu_field_t* stat_cpu_row_t;
  */
 typedef stat_cpu_row_t* stat_cpu_array_t;
 
+typedef float stat_cpu_percentage_t;
+
+typedef stat_cpu_percentage_t* stat_cpu_percentage_array_t;
 
 
 
@@ -160,6 +163,8 @@ void stat_cpu_array_free_l(
  */
 void stat_cpu_array_free(stat_cpu_array_t array);
 
+void stat_cpu_array_deleter(void* array_ptr);
+
 /**
  * @brief Read /proc/stat data regarding cpu load from the source to the
  * provided stat_cpu_array_t using provided stat_layout_t object.
@@ -199,6 +204,19 @@ int stat_cpu_array_read_fl(
 int stat_cpu_array_read_f(
   stat_cpu_array_t array,
   FILE source[static 1]
+);
+
+void stat_cpu_array_delta_l(
+  stat_cpu_array_t old,
+  stat_cpu_array_t curr,
+  stat_cpu_array_t result,
+  stat_layout_t layout[static 1]
+);
+
+void stat_cpu_array_delta(
+  stat_cpu_array_t old,
+  stat_cpu_array_t curr,
+  stat_cpu_array_t result
 );
 
 /**
@@ -252,5 +270,27 @@ float stat_cpu_row_percentage_8(
   stat_cpu_row_t delta
 );
 
+stat_cpu_percentage_array_t stat_cpu_percentage_array_create_l(
+  stat_layout_t layout[static 1]
+);
+
+stat_cpu_percentage_array_t stat_cpu_percentage_array_create(void);
+
+void stat_cpu_percentage_array_free(
+  stat_cpu_percentage_array_t array
+);
+
+void stat_cpu_percentage_array_deleter(void* array_ptr);
+
+int stat_cpu_percentage_array_calculate_l(
+  stat_cpu_percentage_array_t percentage_array,
+  stat_cpu_array_t field_array,
+  stat_layout_t layout[static 1]
+);
+
+int stat_cpu_percentage_array_calculate(
+  stat_cpu_percentage_array_t percentage_array,
+  stat_cpu_array_t field_array
+);
 
 #endif

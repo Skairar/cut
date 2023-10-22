@@ -90,6 +90,10 @@ void stat_cpu_array_free(stat_cpu_array_t array) {
   stat_cpu_array_free_l(array, &global_layout);
 }
 
+void stat_cpu_array_deleter(void *array_ptr) {
+  stat_cpu_array_free((stat_cpu_array_t)array_ptr);
+}
+
 int stat_cpu_array_read_fl(
   stat_cpu_array_t array,
   FILE source[static 1],
@@ -130,6 +134,25 @@ int stat_cpu_array_read_f(
   return stat_cpu_array_read_fl(array, source, &global_layout);
 }
 
+void stat_cpu_array_delta_l(
+  stat_cpu_array_t old,
+  stat_cpu_array_t curr,
+  stat_cpu_array_t result,
+  stat_layout_t layout[static 1]
+) {
+  for (size_t i = 0; i < layout->cpu_count; ++i) {
+    stat_cpu_row_delta_l(old[i], curr[i], result[i], layout);
+  }
+}
+
+void stat_cpu_array_delta(
+  stat_cpu_array_t old,
+  stat_cpu_array_t curr,
+  stat_cpu_array_t result
+) {
+  stat_cpu_array_delta_l(old, curr, result, &global_layout);
+}
+
 void stat_cpu_row_delta_l(
   stat_cpu_row_t old,
   stat_cpu_row_t curr,
@@ -165,4 +188,46 @@ float stat_cpu_row_percentage_8(
     return 0;
   }
   return total_work * 100.00f / total;
+}
+
+stat_cpu_percentage_array_t stat_cpu_percentage_array_create_l(
+  stat_layout_t layout[static 1]
+) {
+  return malloc(sizeof(stat_cpu_percentage_t) * layout->cpu_count);
+}
+
+stat_cpu_percentage_array_t stat_cpu_percentage_array_create(void) {
+  return stat_cpu_percentage_array_create_l(&global_layout);
+}
+
+void stat_cpu_percentage_array_free(
+  stat_cpu_percentage_array_t array
+) {
+  free(array);
+}
+
+void stat_cpu_percentage_array_deleter(void* array_ptr) {
+  stat_cpu_percentage_array_free((stat_cpu_percentage_array_t)array_ptr);
+}
+
+int stat_cpu_percentage_array_calculate_l(
+  stat_cpu_percentage_array_t percentage_array,
+  stat_cpu_array_t field_array,
+  stat_layout_t layout[static 1]
+) {
+  for (size_t i = 0; i < layout->cpu_count; ++i) {
+    percentage_array[i] = stat_cpu_row_percentage_8(field_array[i]);
+  }
+  return layout->cpu_count;
+}
+
+int stat_cpu_percentage_array_calculate(
+  stat_cpu_percentage_array_t percentage_array,
+  stat_cpu_array_t field_array
+) {
+  return stat_cpu_percentage_array_calculate_l(
+    percentage_array,
+    field_array,
+    &global_layout
+  );
 }

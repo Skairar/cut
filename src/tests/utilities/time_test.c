@@ -9,7 +9,7 @@
  * Very simple tests that were needed to get rid of some paranoia.
  */
 
-const long long int hundred_million = NS_PER_SEC / 10;
+static const long long int hundred_million = NS_PER_SEC / 10;
 
 int main(void) {
   
@@ -126,7 +126,5 @@ int main(void) {
     "time_left(0.999,999,999, 5.4, 1.8) -> 2.600,000,001"
   );
   
-
-
   return 0;
 }

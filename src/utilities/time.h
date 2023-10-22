@@ -110,7 +110,7 @@ timepoint_t timepoint_s_ns(
  * 
  * @return timepoint_t 
  */
-timepoint_t timepoint_now();
+timepoint_t timepoint_now(void);
 
 /*timepoint_t timepoint_normalize(
   timepoint_t time
@@ -157,7 +157,7 @@ timespan_t timespan_s_ns(
 /**
  * @brief Get timespan object in place from microseconds
  * 
- * @param microseconds 
+ * @param microseconds Number of microseconds
  * @return timespan_t 
  */
 timespan_t timespan_ms(
