@@ -1,301 +1,40 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <ctype.h>
 #include <stdatomic.h>
-#include <time.h>
 #include <threads.h>
 
+#include "utilities/time.h"
 #include "cpu_diagnostics/linux.h"
-
 #include "logger/logger.h"
 #include "data_structures/message_queue.h"
 
+#include "threads/execution_frame.h"
+#include "threads/thread_context.h"
+#include "threads/frames/reader.h"
+#include "threads/frames/analyzer.h"
+#include "threads/frames/printer.h"
+#include "threads/frames/logger.h"
 
 static atomic_bool execution_flag;
+
 
 static void signal_handler(int signum) {
   (void)signum;
   atomic_store(&execution_flag, false);
 }
 
-
-typedef struct thread_context {
-  atomic_bool* should_continue;
-  atomic_bool* watchdog;
-  timespan_t interval;
-} thread_context_t;
-
-typedef struct reader_context {
-  thread_context_t thread;
-  message_queue_t* output;
-} reader_context_t;
-
-typedef struct analyzer_context {
-  thread_context_t thread;
-  message_queue_t* input;
-  message_queue_t* output;
-} analyzer_context_t;
-
-typedef struct printer_context {
-  thread_context_t thread;
-  message_queue_t* input;
-} printer_context_t;
-
-int reader_exec(
-  void* reader_context_ptr
-) {
-  reader_context_t* context = reader_context_ptr;
-  int iteration_count = 0;
-  log_puts(log_trace, "<Reader> Thread starts.");
-
-  while (atomic_load(context->thread.should_continue)) {
-    int read_flag = -1;
-    int push_flag = -1;
-
-    atomic_store(context->thread.watchdog, true);
-
-    timepoint_t loop_start = timepoint_now();
-    timepoint_t loop_end = timepoint_after(loop_start, context->thread.interval);
-
-    FILE* proc_stat = fopen("/proc/stat", "r");
-    if (proc_stat == NULL) {
-      log_puts(log_fatal, "<Reader> Failed to open /proc/stat.");
-      atomic_store(context->thread.should_continue, false);
-      break;
-    }
-
-    stat_cpu_array_t data = stat_cpu_array_create();
-    if (data != NULL) {
-      read_flag = stat_cpu_array_read_f(data, proc_stat);
-    } else {
-      //TO DO: out of memory condition
-      fclose(proc_stat);
-      continue;
-    }
-
-    fclose(proc_stat);
-
-    if (read_flag == 0) {
-      push_flag = message_queue_push(context->output, data);
-      log_puts(log_trace, "<Reader> Pushed message to queue.");
-    } else {
-      stat_cpu_array_free(data);
-      log_printf(
-        log_error,
-        "<Reader> Read from /stat/cpu failed, return code: %i.",
-        read_flag
-      );
-    }
-
-    if (push_flag) {
-      stat_cpu_array_free(data);
-      log_printf(
-        log_error, 
-        "<Reader> Failed to push results, return code: %i.",
-        push_flag
-      );
-    }
-
-    timespan_t time_remaining = timespan_time_left(
-      loop_start,
-      loop_end,
-      timespan_dur(loop_start, timepoint_now())
-    );
-    //looping it in case signal wakes it up
-    while (timepoint_gt(loop_end, timepoint_now())) {
-      log_puts(log_trace, "<Reader> thread sleeps.");
-      thrd_sleep(&time_remaining, &time_remaining);
-      log_puts(log_trace, "<Reader> thread wakes up.");
-    }
-
-    timespan_t total_dur = timespan_dur(loop_start, timepoint_now());
-    log_printf(
-      log_debug,
-      "<Reader> Iteration #%i finished in %llisec %llinsec.",
-      iteration_count,
-      (long long int)total_dur.tv_sec,
-      (long long int)total_dur.tv_nsec
-    );
-    iteration_count += 1;
-  }
-  log_printf(
-    log_trace,
-    "<Reader> Thread ends after %i iterations.",
-    iteration_count
-  );
-  return iteration_count;
-}
-
-int analyzer_exec(
-  void* analyzer_context_ptr
-) {
-  analyzer_context_t* context = analyzer_context_ptr;
-  int iteration_count = 0;
-  log_puts(log_trace, "<Analyzer> Thread starts.");
-
-  stat_cpu_array_t prev = NULL;  
-  stat_cpu_array_t curr = NULL;
-  stat_cpu_array_t delta = stat_cpu_array_create();
-
-  if (delta == NULL) {
-    //TO DO: out of memory condition
-    atomic_store(context->thread.should_continue, false);
-    return 0;
-  }
-
-  stat_cpu_percentage_array_t result = NULL;
-
-  while (atomic_load(context->thread.should_continue)) {
-    atomic_store(context->thread.watchdog, true);
-    timepoint_t loop_start = timepoint_now();
-    timepoint_t loop_end = timepoint_after(loop_start, context->thread.interval);
-
-    while (timepoint_gt(loop_end, timepoint_now())) {     
-      log_puts(log_trace, "<Analyzer> Attempting to fetch input.");
-      curr = message_queue_pop_wait_t(context->input, loop_end);
-      if (curr == NULL) {
-        log_puts(log_trace, "<Analyzer> Fetch timed out.");
-      } else if (prev != NULL) {
-        log_puts(log_trace, "<Analyzer> Input fetched, processing.");
-        result = stat_cpu_percentage_array_create();
-        if (result == NULL) {
-          //TO DO: Out of memory
-          stat_cpu_array_free(prev);
-        } else {
-          log_puts(log_trace, "<Analyzer> Calculating results.");
-          stat_cpu_array_delta(prev, curr, delta);
-          stat_cpu_percentage_array_calculate(result, delta);
-
-          stat_cpu_array_free(prev);
-          int push_flag = message_queue_push(context->output, result);
-          if (push_flag) {
-            stat_cpu_percentage_array_free(result);
-            log_printf(
-              log_error,
-              "<Analyzer> Failed to push results, return code: %i.",
-              push_flag
-            );
-          } else {
-            log_puts(log_trace, "<Analyzer> Pushed message to queue.");
-          }
-        }
-        prev = curr;
-      } else {
-        prev = curr;
-      }
-    }
-
-    timespan_t total_dur = timespan_dur(loop_start, timepoint_now());
-    log_printf(
-      log_debug,
-      "<Analyzer> Iteration #%i finished in %llisec %llinsec.",
-      iteration_count,
-      (long long int)total_dur.tv_sec,
-      (long long int)total_dur.tv_nsec
-    );
-    iteration_count += 1;
-  }
-  
-  if (prev != NULL) {
-    stat_cpu_array_free(prev);
-  }
-
-  stat_cpu_array_free(delta);
-
-  log_printf(
-    log_trace,
-    "<Analyzer> Thread ends after %i iterations.",
-    iteration_count
-  );
-
-  return iteration_count;
-}
-
-int printer_exec(
-  void* printer_context_ptr
-) {
-  printer_context_t* context = printer_context_ptr;
-  int iteration_count = 0;
-  log_puts(log_trace, "<Printer> Thread starts.");
-
-  stat_cpu_percentage_array_t result = NULL;
-
-  stat_layout_t layout = stat_layout_get();
-
-  while (atomic_load(context->thread.should_continue)) {
-    atomic_store(context->thread.watchdog, true);
-    timepoint_t loop_start = timepoint_now();
-    timepoint_t loop_end = timepoint_after(loop_start, context->thread.interval);
-
-    log_puts(log_trace, "<Printer> Attempting to fetch message.");
-    result = message_queue_pop_wait_t(context->input, loop_end);
-
-    if (result == NULL) {
-      //means there's no need for sleep
-      log_puts(log_trace, "<Printer> Fetch timed out.");
-    } else {
-      log_puts(log_trace, "<Printer> Message fetched, printing.");
-      puts("\nUsage report:");
-      for (size_t i = 1; i < layout.cpu_count; ++i) {
-        printf("CPU_core[%zu]_usage = %f%%\n", i - 1, result[i]);
-      }
-      printf("CPU_total = %f%%\n", result[0]);
-
-      stat_cpu_percentage_array_free(result);
-
-      timespan_t time_remaining = timespan_time_left(
-        loop_start,
-        loop_end,
-        timespan_dur(loop_start, timepoint_now())
-      );
-      //looping it in case signal wakes it up
-      while (timepoint_gt(loop_end, timepoint_now())) {
-        log_puts(log_trace, "<Printer> Thread sleeps.");
-        thrd_sleep(&time_remaining, &time_remaining);
-        log_puts(log_trace, "<Printer> Thread wakes up.");
-      }
-    }
-
-    timespan_t total_dur = timespan_dur(loop_start, timepoint_now());
-    log_printf(
-      log_debug,
-      "<Printer> Iteration #%i finished in %llisec %llinsec.",
-      iteration_count,
-      (long long int)total_dur.tv_sec,
-      (long long int)total_dur.tv_nsec
-    );
-    iteration_count += 1;
-  }
-
-  log_printf(
-    log_trace,
-    "<Printer> Thread ends after %i iterations.",
-    iteration_count
-  );
-  return iteration_count;
-}
-
-
-int logger_exec(
-  void* thread_context_ptr
-) {
-  thread_context_t* context = thread_context_ptr;
-  log_puts(log_trace, "<Logger> Thread starts.");
-
-  while (atomic_load(context->should_continue)) {
-    atomic_store(context->watchdog, true);
-    log_process_some_dur(context->interval);
-  }
-  
-  //delay ending a bit so it can catch messages from other threads
-  thrd_sleep(&(context->interval), NULL);
-  log_puts(log_trace, "<Logger> Thread ending, printing remaining messages.");
-  log_process_all();
-  return 0;
-}
-
+/**
+ * @brief Prints percentages of processor usage in the last second every second,
+ * also logs information about its behaviour into ./log file.
+ * 
+ * Can be stopped with sigterm and sigint(ctrl+c in terminal), which will then
+ * shutdown the application after a little over a second as it will print all
+ * the statistics into ./log. Will also stop in case of any of the threads
+ * taking more than 2 seconds to complete a loop iteration.
+ * 
+ * @return int 
+ */
 int main(void) {
   
   log_init();
@@ -318,49 +57,56 @@ int main(void) {
   signal(SIGINT, signal_handler);
   signal(SIGTERM, signal_handler);
 
-
   atomic_bool watchdog_flag[4];
 
-  reader_context_t reader_context = {
-    .thread = {
-      .should_continue = &execution_flag,
-      .watchdog = &(watchdog_flag[0]),
-      .interval = timespan_s_ns(1, 0)
-    },
+  reader_context_t reader_domain = {
     .output = &unprocessed_data_queue
   };
-
-  analyzer_context_t analyzer_context = {
-    .thread = {
-      .should_continue = &execution_flag,
-      .watchdog = &(watchdog_flag[1]),
-      .interval = timespan_s_ns(1, 0)
-    },
+  analyzer_context_t analyzer_domain = {
     .input = &unprocessed_data_queue,
     .output = &processed_data_queue
   };
-
-  printer_context_t printer_context = {
-    .thread = {
-      .should_continue = &execution_flag,
-      .watchdog = &(watchdog_flag[2]),
-      .interval = timespan_s_ns(1, 0)
-    },
+  printer_context_t printer_domain = {
     .input = &processed_data_queue
   };
 
-  thread_context_t logger_context = {
-    .should_continue = &execution_flag,
-    .watchdog = &(watchdog_flag[3]),
-    .interval = timespan_s_ns(1, 0)
+  thread_context_t contexts[4] = {
+    [0] = {
+      .frame = reader_frame,
+      .interval = timespan_s_ns(1, 0),
+      .name = "Reader",
+      .stack_size = 0,
+      .domain = &reader_domain,
+    },
+    [1] = {
+      .frame = analyzer_frame,
+      .interval = timespan_s_ns(1, 0),
+      .name = "Analyzer",
+      .stack_size = 0,
+      .domain = &analyzer_domain
+    },
+    [2] = {
+      .frame = printer_frame,
+      .interval = timespan_s_ns(1, 0),
+      .name = "Printer",
+      .stack_size = 0,
+      .domain = &printer_domain
+    },
+    [3] = {
+      .frame = logger_frame,
+      .interval = timespan_s_ns(1, 0),
+      .name = "Logger",
+      .stack_size = 0,
+    }
   };
 
   thrd_t worker[4];
 
-  thrd_create(&(worker[0]), reader_exec, &reader_context);
-  thrd_create(&(worker[1]), analyzer_exec, &analyzer_context);
-  thrd_create(&(worker[2]), printer_exec, &printer_context);
-  thrd_create(&(worker[3]), logger_exec, &logger_context);
+  for (size_t i = 0; i < 4; ++i) {
+    contexts[i].should_continue = &execution_flag;
+    contexts[i].watchdog = &(watchdog_flag[i]);
+    thrd_create(&(worker[i]), execution_frame, &(contexts[i]));
+  }
 
   timespan_t interval = timespan_s_ns(2, 0);
 
@@ -369,12 +115,7 @@ int main(void) {
   while (atomic_load(&execution_flag)) {
     timepoint_t loop_start = timepoint_now();
     timepoint_t loop_end = timepoint_after(loop_start, interval);
-    timespan_t remaining = interval;
-    while (timepoint_gt(loop_end, timepoint_now())) {
-      log_puts(log_trace, "<Watchdog> Thread sleeps.");
-      thrd_sleep(&remaining, &remaining);
-      log_puts(log_trace, "<Watchdog> Thread wakes up.");
-    }
+    execution_frame_sleep_until(loop_end);
 
     for (flag_id = 0; flag_id < 4; ++flag_id) {
       if (!atomic_exchange(&(watchdog_flag)[flag_id], false)) {

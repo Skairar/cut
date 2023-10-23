@@ -65,7 +65,19 @@ add_library(
   src/logger/severity.c
 )
 
+add_library(
+  threads STATIC
+  src/threads/thread_context.c
+  src/threads/execution_frame.c
+  src/threads/frames/analyzer.c
+  src/threads/frames/logger.c
+  src/threads/frames/printer.c
+  src/threads/frames/reader.c
+)
+
 target_link_libraries(logger queue utilities)
+
+target_link_libraries(threads logger utilities)
 
 add_executable(
   main
@@ -73,4 +85,4 @@ add_executable(
   src/cpu_diagnostics/linux.c
 )
 
-target_link_libraries(main logger)
+target_link_libraries(main logger threads)
