@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.18)
 
 project(CPU-Usage-Tracker LANGUAGES C VERSION 0.0.1)
 
@@ -16,6 +16,7 @@ if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
     -Wpedantic
     -Werror
     -Wfatal-errors
+    -pthread
   )
 elseif(CMAKE_C_COMPILER_ID STREQUAL "Clang")
   add_compile_options(
@@ -77,7 +78,7 @@ add_library(
 
 target_link_libraries(logger queue utilities)
 
-target_link_libraries(threads logger utilities)
+target_link_libraries(threads logger utilities -lpthread)
 
 add_executable(
   main
