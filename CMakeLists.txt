@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.18)
+cmake_minimum_required(VERSION 3.20)
 
 project(CPU-Usage-Tracker LANGUAGES C VERSION 0.0.1)
 
@@ -16,7 +16,6 @@ if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
     -Wpedantic
     -Werror
     -Wfatal-errors
-    -pthread
   )
 elseif(CMAKE_C_COMPILER_ID STREQUAL "Clang")
   add_compile_options(
